@@ -10,7 +10,8 @@ export const gitConfig = {
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
-      title: 'My App',
+      title: 'microgpt',
+      enabled: true,
     },
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };

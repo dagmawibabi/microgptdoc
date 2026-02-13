@@ -1,0 +1,192 @@
+---
+title: Understanding Gradients
+description: How the backward pass learns from mistakes
+---
+
+# Understanding Gradients
+
+In the last section, we saw how operations have gradients. Now let's understand what gradients actually are and why they're useful.
+
+## The Intuition: Learning from Mistakes
+
+Imagine you're trying to hit a target:
+
+```
+Target: 0
+Your prediction: 10
+Difference (error): 10
+```
+
+To get closer to the target, you should adjust your prediction. But **how much** should you adjust it?
+
+That's what the **gradient** tells you!
+
+## What is a Gradient?
+
+A **gradient** is simply the answer to this question:
+
+> "If I change this input slightly, how much does the output change?"
+
+```
+Gradient = "How much does output change" / "How much did I change the input"
+```
+
+In math notation: `∂output / ∂input`
+
+### Concrete Example
+
+Say we have:
+```
+y = 2 * x
+```
+
+If x = 3, then y = 6.
+
+Now, if we change x by a tiny amount (say, +0.001):
+- New x = 3.001
+- New y = 2 * 3.001 = 6.002
+
+So:
+- Input changed by: 0.001
+- Output changed by: 0.002
+- Gradient = 0.002 / 0.001 = 2
+
+The gradient is 2!
+
+This means: "if I increase x, y increases twice as fast."
+
+## Positive vs Negative Gradient
+
+| Gradient | Meaning | Action |
+|----------|---------|--------|
+| **Positive** | Increasing input increases loss | Decrease the weight |
+| **Negative** | Increasing input decreases loss | Increase the weight |
+| **Zero** | Input doesn't affect output | Don't change |
+
+## The Chain Rule
+
+When we have multiple operations chained together:
+
+```
+a → [×2] → b → [+3] → c
+```
+
+The gradient of `c` with respect to `a` is:
+```
+∂c/∂a = ∂c/∂b × ∂b/∂a
+```
+
+This is called the **chain rule**. It's how we trace gradients through complex computations.
+
+## The Backward Pass
+
+The backward pass computes gradients from output to input:
+
+```python
+def backward(self):
+    # Step 1: Build topological order
+    topo = []
+    visited = set()
+
+    def build_topo(v):
+        if v not in visited:
+            visited.add(v)
+            for child in v._prev:
+                build_topo(child)
+            topo.append(v)
+    build_topo(self)
+
+    # Step 2: Apply chain rule in reverse
+    self.grad = 1
+    for v in reversed(topo):
+        v._backward()
+```
+
+### Why Reverse Order?
+
+We start from the output (where we know the gradient is 1) and work backward:
+
+```
+Output gradient = 1
+     ↓
+Backward through last operation
+     ↓
+Backward through second-to-last
+     ↓
+...
+     ↓
+Input gradient
+```
+
+This is because each step needs the gradient from the next step.
+
+## Visual Example
+
+Let's trace through a simple computation:
+
+```python
+a = Value(2.0, _op='a')
+b = Value(3.0, _op='b')
+c = a * b    # c = 6
+d = c + a    # d = 8
+d.backward()
+```
+
+The backward pass:
+
+```
+d.grad = 1
+
+Step 1: c + a backward
+  a.grad += 1 (from c + a)
+  c.grad += 1 (from c + a)
+
+Step 2: a * b backward
+  a.grad += b.data * c.grad = 3.0 * 1 = 3.0
+  b.grad += a.data * c.grad = 2.0 * 1 = 2.0
+
+Final gradients:
+  a.grad = 1 + 3 = 4
+  b.grad = 2
+  c.grad = 1
+```
+
+## Gradient Descent
+
+Once we have gradients, we use them to update weights:
+
+```python
+# The update rule
+weight.data -= learning_rate * weight.grad
+```
+
+This is called **gradient descent**:
+- We go "downhill" (reduce loss)
+- The step size is the learning rate
+
+```
+New weight = Old weight - (learning rate × gradient)
+```
+
+## Why We Need Gradients
+
+Without gradients, we'd have to:
+1. Guess random changes to weights
+2. See if it helps
+3. Repeat billions of times
+
+With gradients, we know exactly:
+1. Which direction helps
+2. How much to change
+
+That's the magic of neural network training!
+
+## Summary
+
+A **gradient** tells you:
+1. **Direction**: Which way to change the weight
+2. **Magnitude**: How much to change it
+
+The **backward pass** uses the chain rule to compute gradients through the entire computation graph.
+
+**Gradient descent** uses these gradients to update weights and reduce loss.

@@ -1,0 +1,4 @@
+{
+  "title": "Architecture",
+  "pages": ["linear-layers", "embeddings", "softmax", "rmsnorm", "attention", "mlp", "gpt-forward"]
+}

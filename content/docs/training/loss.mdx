@@ -1,0 +1,145 @@
+---
+title: The Loss Function
+description: Measuring how wrong the model's predictions are
+---
+
+# The Loss Function
+
+The **loss function** tells us how wrong the model's predictions are. Training is the process of minimizing this loss.
+
+## What is Loss?
+
+**Loss** is a single number that represents how "bad" the model's predictions are.
+
+- **Low loss**: Model is confident and correct
+- **High loss**: Model is uncertain or wrong
+
+```
+Prediction: "50% chance of 'e'" → Correct: 'e' → Loss: -log(0.5) = 0.69
+Prediction: "1% chance of 'e'" → Correct: 'e' → Loss: -log(0.01) = 4.61
+```
+
+Lower loss = better!
+
+## Cross-Entropy Loss
+
+microgpt uses **cross-entropy loss** (negative log likelihood):
+
+```python
+loss_t = -probs[target_id].log()
+```
+
+Let's break this down:
+
+### Step 1: Get Probability
+
+```python
+probs = softmax(logits)
+```
+
+We have a probability for each possible next character.
+
+### Step 2: Find Probability of Correct Answer
+
+```python
+probs[target_id]
+```
+
+`target_id` is the actual next character. We look up its probability.
+
+### Step 3: Take Negative Log
+
+```python
+-probs[target_id].log()
+```
+
+We use negative log because:
+- Probability of correct answer is between 0 and 1
+- log(1) = 0 → -log(1) = 0 (no loss - perfect!)
+- log(0.1) = -2.3 → -log(0.1) = 2.3 (high loss)
+- log(0.01) = -4.6 → -log(0.01) = 4.6 (very high loss)
+
+## Visualizing the Loss
+
+```
+Probability of correct answer: 1.0
+-log(1.0) = 0
+         ↓
+Probability: 0.5
+-log(0.5) = 0.69
+         ↓
+Probability: 0.1
+-log(0.1) = 2.30
+         ↓
+Probability: 0.01
+-log(0.01) = 4.61
+         ↓
+Probability: 0.0001
+-log(0.0001) = 9.21
+```
+
+The lower the probability, the higher the loss!
+
+## Why Negative Log?
+
+Why not just use `1 - probability`?
+
+| Method | Problem |
+|--------|---------|
+| `1 - prob` | Doesn't penalize confident wrong predictions enough |
+| `prob²` | Doesn't penalize confident wrong predictions enough |
+| `-log(prob)` | **✓** Penalizes confident wrong predictions heavily |
+
+Negative log is the **standard** for classification problems because:
+- It's mathematically nice (derivative is clean)
+- It has strong theoretical backing (information theory)
+- It works well in practice
+
+## Averaging Over Sequence
+
+We compute loss at each position, then average:
+
+```python
+losses = []
+for pos_id in range(n):
+    loss_t = -probs[target_id].log()
+    losses.append(loss_t)
+
+loss = (1 / n) * sum(losses)
+```
+
+This gives us the average loss across the entire sequence.
+
+## Loss in Training
+
+During training, we:
+1. **Forward pass**: Get predictions
+2. **Compute loss**: Compare predictions to correct answers
+3. **Backward pass**: Compute gradients
+4. **Update weights**: Reduce loss
+
+The goal: **make loss as low as possible!**
+
+## What Does Loss Look Like?
+
+During training, you might see:
+
+```
+step 1: loss 3.2589
+step 100: loss 2.8901
+step 500: loss 1.9802
+step 1000: loss 1.4234
+```
+
+The loss should **decrease** over time, meaning the model is learning!
+
+## Summary
+
+The **loss function** measures prediction quality:
+
+1. **Get probability** of the correct answer
+2. **Take negative log** to get the loss
+3. **Average** across all positions
+4. **Minimize** this value during training
+
+Cross-entropy loss is the standard for language models because it heavily penalizes confident wrong predictions!

@@ -1,0 +1,146 @@
+---
+title: Embeddings
+description: Converting discrete tokens into meaningful vectors
+---
+
+# Embeddings
+
+**Embeddings** convert discrete tokens (characters, words) into continuous vectors (lists of numbers) that the neural network can work with.
+
+## The Problem with Tokens
+
+Tokens are just integers:
+```
+'a' → 1
+'b' → 2
+'c' → 3
+```
+
+But these numbers are arbitrary! The model needs to understand that:
+- 'a' and 'e' are both vowels
+- 'b' and 'd' are both consonants
+- 'cat' is related to 'kitten'
+
+Embeddings solve this by representing each token as a vector of numbers.
+
+## What is an Embedding?
+
+An embedding is just a list of numbers (a vector):
+
+```
+Token 'a': [0.1, -0.3, 0.5, 0.2, ...]  (n_embd numbers)
+Token 'b': [0.2, 0.1, -0.4, 0.3, ...]
+Token 'c': [-0.1, 0.2, 0.3, -0.1, ...]
+```
+
+Each number in the vector represents some "aspect" of the character.
+
+## How Embeddings Work
+
+Think of it like this:
+
+```
+Position 0: captures "vowel-ness"
+Position 1: captures "common letter"
+Position 2: captures "first in alphabet"
+...
+```
+
+The model learns which aspects matter for prediction!
+
+## Embeddings in microgpt
+
+There are two types of embeddings:
+
+### Token Embeddings
+
+```python
+tok_emb = state_dict['wte'][token_id]
+```
+
+- Each character gets its own vector
+- Shape: `vocab_size × n_embd`
+- Learnable: the numbers are trained
+
+### Position Embeddings
+
+```python
+pos_emb = state_dict['wpe'][pos_id]
+```
+
+- Each position gets its own vector
+- Shape: `block_size × n_embd`
+- Learnable: the numbers are trained
+
+## Combining Embeddings
+
+In microgpt, embeddings are combined by addition:
+
+```python
+tok_emb = state_dict['wte'][token_id]  # What the character "means"
+pos_emb = state_dict['wpe'][pos_id]    # Where the character is
+x = [t + p for t, p in zip(tok_emb, pos_emb)]  # Combine them!
+```
+
+### Why Addition Works
+
+This might seem strange - adding vectors of different meanings?
+
+But mathematically, it works! Both are just vectors of numbers:
+
+```
+Character 'a' at position 0:
+  tok_emb['a'] = [0.1, -0.3, 0.5]
+  pos_emb[0]   = [0.2, 0.1, 0.0]
+  Combined     = [0.3, -0.2, 0.5]
+```
+
+The model learns to separate the two types of information.
+
+## Visual Example
+
+```
+Token 'a' at position 2:
+┌─────────────────────────────────────┐
+│  tok_emb['a']                       │
+│  [0.1, -0.3, 0.5, 0.2, ...]        │
+│  ↑ "This is character 'a'"          │
+│                                     │
+│  pos_emb[2]                         │
+│  [0.0, 0.2, -0.1, 0.1, ...]        │
+│  ↑ "This is position 2"             │
+│                                     │
+│  Combined = tok + pos               │
+│  [0.1, -0.1, 0.4, 0.3, ...]        │
+│  ↑ "This is 'a' at position 2"     │
+└─────────────────────────────────────┘
+```
+
+## Why Not Just Use the Token ID?
+
+You might wonder: why not just use the token ID directly?
+
+```
+Using token ID:    'a' → 1, 'b' → 2
+Using embedding:   'a' → [0.1, -0.3, ...]
+```
+
+**Problems with token IDs:**
+- 'a' and 'b' are equally different from 'c'
+- The model has to learn all relationships from scratch
+
+**Benefits of embeddings:**
+- Similar characters can have similar vectors
+- Pre-learned structure helps
+- More expressive
+
+## Summary
+
+**Embeddings** convert tokens to vectors:
+
+1. Each token gets a learned vector of numbers
+2. Each position gets a learned vector
+3. Add them together to combine meaning and position
+4. The model learns what aspects of characters matter
+
+This is how the model "understands" what each character means!

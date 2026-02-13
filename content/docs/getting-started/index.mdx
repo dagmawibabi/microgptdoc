@@ -1,0 +1,97 @@
+---
+title: Introduction
+description: Welcome to microgpt - a minimal GPT implementation in pure Python
+options:
+  icon: BookOpen
+---
+
+# Welcome to microgpt
+
+microgpt is a complete, working GPT (Generative Pre-trained Transformer) model written in just **250 lines of pure Python with zero dependencies**. No PyTorch, no NumPy, nothing but Python's standard library.
+
+This is an **educational project** by Andrej Karpathy - one of the pioneers of deep learning. The goal is to show exactly how a language model works under the hood.
+
+## What You'll Learn
+
+By reading through this documentation, you'll understand:
+
+| Concept | What It Means |
+|---------|----------------|
+| **Tokenization** | How to convert text into numbers a computer can process |
+| **Neural Networks** | How computers learn patterns from data |
+| **Autograd** | How computers calculate gradients automatically |
+| **Transformers** | The architecture behind GPT, BERT, and ChatGPT |
+| **Attention** | How models "focus" on relevant parts of text |
+| **Training** | How models learn from examples |
+| **Inference** | How models generate new text |
+
+## How Simple Is It?
+
+Here's the entire training loop in just a few lines:
+
+```python
+for step in range(num_steps):
+    # Get a training example
+    tokens = encode(document)
+
+    # Forward pass - make predictions
+    loss = forward_pass(tokens)
+
+    # Backward pass - figure out how to improve
+    loss.backward()
+
+    # Update weights
+    update_weights()
+```
+
+That's it! That's the heart of machine learning.
+
+## How to Run
+
+```bash
+python microgpt.py
+```
+
+You'll see it download a dataset of names, train for a while, then generate new names.
+
+## Customizing the Model
+
+You can change the model size:
+
+```bash
+# Small model (fast)
+python microgpt.py --n_embd 16 --n_layer 1
+
+# Medium model
+python microgpt.py --n_embd 32 --n_layer 3 --num_steps 5000
+
+# Large model (slower but smarter)
+python microgpt.py --n_embd 64 --n_layer 6 --num_steps 10000
+```
+
+## Documentation Roadmap
+
+Start here, then follow along in order:
+
+<Cards>
+  <Card title="Quick Start Guide" href="/docs/getting-started/quickstart" />
+  <Card title="Introduction" href="/docs/getting-started" />
+  <Card title="What is a Neural Network?" href="/docs/getting-started/neural-networks" />
+  <Card title="What is a Transformer?" href="/docs/getting-started/transformers" />
+  <Card title="How Tokenization Works" href="/docs/tokenization" />
+  <Card title="The Autograd Engine" href="/docs/autograd" />
+  <Card title="Understanding Gradients" href="/docs/foundations/gradients" />
+  <Card title="Model Parameters" href="/docs/foundations/parameters" />
+  <Card title="Linear Layers" href="/docs/architecture/linear-layers" />
+  <Card title="Embeddings" href="/docs/architecture/embeddings" />
+  <Card title="Softmax Explained" href="/docs/architecture/softmax" />
+  <Card title="RMSNorm" href="/docs/architecture/rmsnorm" />
+  <Card title="Multi-Head Attention" href="/docs/architecture/attention" />
+  <Card title="The MLP Block" href="/docs/architecture/mlp" />
+  <Card title="The GPT Forward Pass" href="/docs/architecture/gpt-forward" />
+  <Card title="Loss Function" href="/docs/training/loss" />
+  <Card title="The Training Loop" href="/docs/training/training-loop" />
+  <Card title="The Adam Optimizer" href="/docs/training/adam" />
+  <Card title="Inference & Generation" href="/docs/generation/inference" />
+  <Card title="Code Reference (Line by Line)" href="/docs/reference/code-reference" />
+</Cards>

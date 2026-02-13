@@ -1,0 +1,184 @@
+---
+title: Inference & Generation
+description: How the trained model generates new text
+---
+
+# Inference & Generation
+
+After training, we can use the model to generate new text! This is called **inference** or **generation**.
+
+## The Generation Code
+
+Here's the inference code from microgpt:
+
+```python
+temperature = 0.5
+print("\n--- generation ---")
+for sample_idx in range(5):
+    keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
+    token_id = BOS
+    print(f"sample {sample_idx}: ", end="")
+    for pos_id in range(block_size):
+        logits = gpt(token_id, pos_id, keys, values)
+        probs = softmax([l / temperature for l in logits])
+        token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
+        if token_id == BOS:
+            break
+        print(itos[token_id], end="")
+    print()
+```
+
+Let's break this down!
+
+## Starting Generation
+
+```python
+keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
+token_id = BOS
+```
+
+We start with:
+- Empty keys and values (no context yet)
+- The ``&lt;BOS&gt;`` token (beginning of sequence)
+
+## The Generation Loop
+
+```python
+for pos_id in range(block_size):
+    logits = gpt(token_id, pos_id, keys, values)
+    probs = softmax([l / temperature for l in logits])
+    token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
+    if token_id == BOS:
+        break
+    print(itos[token_id], end="")
+```
+
+For each position:
+1. **Forward pass**: Get logits for next token
+2. **Apply temperature**: Divide by temperature
+3. **Softmax**: Convert to probabilities
+4. **Sample**: Pick next token randomly
+5. **Print**: Show the character
+6. **Repeat**: Continue until BOS or max length
+
+## Temperature
+
+The **temperature** controls randomness:
+
+```python
+probs = softmax([l / temperature for l in logits])
+```
+
+| Temperature | Effect | Example Output |
+|-------------|--------|----------------|
+| 0.1 | Very deterministic | "emma" (always picks best) |
+| 0.5 | Balanced | "emma", "emily", "emma" |
+| 1.0 | More random | "emxa", "emma", "emua" |
+| 2.0 | Very random | "xzqw", "emmm", "avva" |
+
+### Low Temperature
+
+Dividing by a small number (like 0.1) makes the largest logit even larger:
+
+```
+logits: [2.0, 1.0, 0.1]
+temp 1.0: softmax([2.0, 1.0, 0.1]) = [0.65, 0.24, 0.11]
+temp 0.1: softmax([20, 10, 1]) = [0.999, 0.00004, 0.0]
+```
+
+The model becomes very confident (greedy).
+
+### High Temperature
+
+Dividing by a large number makes all logits similar:
+
+```
+temp 2.0: softmax([1.0, 0.5, 0.05]) = [0.42, 0.35, 0.23]
+```
+
+The model becomes more random.
+
+## Sampling
+
+```python
+token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
+```
+
+We don't just pick the most likely token (that would be greedy). Instead, we **sample** from the probability distribution.
+
+This gives us variety!
+
+```
+Probabilities: [0.65, 0.24, 0.11]
+- 65% of the time: pick index 0
+- 24% of the time: pick index 1
+- 11% of the time: pick index 2
+```
+
+## Stopping Conditions
+
+```python
+if token_id == BOS:
+    break
+```
+
+We stop when:
+- The model predicts ``&lt;BOS&gt;`` (end of sequence)
+- Or we reach `block_size` positions
+
+## What Gets Generated
+
+When you run `python microgpt.py`, after training you'll see:
+
+```text
+--- generation ---
+sample 0: emma
+sample 1: ava
+sample 2: olivi
+sample 3: ela
+sample 4: mia
+```
+
+These are new names the model invented!
+
+## How Generation Works
+
+```
+Step 1: Start with `&lt;BOS&gt;`
+  `&lt;BOS&gt;` → model predicts 'e' (high probability)
+
+Step 2: Input is now `&lt;BOS&gt;` e
+  'e' → model predicts 'm' (high probability)
+
+Step 3: Input is now `&lt;BOS&gt;` e m
+  'm' → model predicts 'm' (high probability)
+
+Step 4: Input is now `&lt;BOS&gt;` e m m
+  'm' → model predicts 'a' (high probability)
+
+Step 5: Input is now `&lt;BOS&gt;` e m m a
+  'a' → model predicts `&lt;BOS&gt;` (end!)
+```
+
+The model generates left-to-right, using its previous predictions as context!
+
+## Training vs Inference
+
+| Aspect | Training | Inference |
+|--------|----------|-----------|
+| Input | Real data | Model's own output |
+| Keys/Values | Stored from data | Accumulated |
+| Temperature | Not used | Can vary |
+| Purpose | Learn from examples | Generate new text |
+
+## Summary
+
+**Inference** generates new text:
+
+1. **Start** with ``&lt;BOS&gt;`` token
+2. **Predict** next token probabilities
+3. **Apply** temperature for randomness
+4. **Sample** from the distribution
+5. **Repeat** until ``&lt;BOS&gt;`` or max length
+
+This is how the trained model creates new names, sentences, or any text!

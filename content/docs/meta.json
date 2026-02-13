@@ -1,0 +1,13 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "getting-started",
+    "tokenization",
+    "foundations",
+    "architecture",
+    "training",
+    "autograd",
+    "generation",
+    "reference"
+  ]
+}

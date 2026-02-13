@@ -1,0 +1,111 @@
+---
+title: Quick Start
+description: Get microgpt running in 5 minutes
+---
+
+# Quick Start
+
+Get microgpt running in just a few minutes. No installation required!
+
+## Prerequisites
+
+You only need **Python** (3.7+) installed on your computer. That's it!
+
+```bash
+python --version
+```
+
+## Step 1: Clone or Download
+
+If you have git:
+```bash
+git clone https://github.com/yourusername/microgpt.git
+cd microgpt
+```
+
+Otherwise, just download `microgpt.py` from the repository.
+
+## Step 2: Run!
+
+```bash
+python microgpt.py
+```
+
+That's it! You'll see:
+
+```
+vocab size: 26, num docs: 32033
+num params: 4125
+step 1 / 1000 | loss 3.2589
+step 2 / 1000 | loss 3.1892
+...
+step 1000 / 1000 | loss 1.4234
+
+--- generation ---
+sample 0: emma
+sample 1: ava
+sample 2: olivi
+sample 3: ela
+sample 4: mia
+
+mean loss last 50 steps: 1.4234
+```
+
+## What Happens?
+
+1. **Downloads data** - First run downloads a file of 32,000+ names
+2. **Builds vocabulary** - Creates mappings for all characters
+3. **Initializes model** - Sets up ~4,000 parameters
+4. **Trains** - Runs 1000 iterations (takes ~30 seconds)
+5. **Generates** - Creates 5 new names!
+
+## Customizing the Model
+
+### Small Model (Fast)
+```bash
+python microgpt.py --n_embd 16 --n_layer 1 --num_steps 500
+```
+~4K parameters, trains in 10 seconds
+
+### Medium Model (Balanced)
+```bash
+python microgpt.py --n_embd 32 --n_layer 2 --num_steps 2000
+```
+~20K parameters, trains in 1 minute
+
+### Large Model (Better Results)
+```bash
+python microgpt.py --n_embd 64 --n_layer 4 --num_steps 5000
+```
+~100K parameters, trains in 5 minutes
+
+## Command-Line Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--n_embd` | 16 | Embedding dimension |
+| `--n_layer` | 1 | Number of transformer layers |
+| `--block_size` | 8 | Maximum sequence length |
+| `--num_steps` | 1000 | Training iterations |
+| `--n_head` | 4 | Number of attention heads |
+| `--learning_rate` | 0.01 | Learning rate |
+
+## Understanding the Output
+
+```
+step 1 / 1000 | loss 3.2589
+       ↑       ↑       ↑
+    current   total  how wrong
+    step     steps  the model is
+```
+
+- **Loss**: Lower is better (starts ~3.2, ends ~1.4)
+- **Samples**: Generated names after training
+
+## Next Steps
+
+Ready to learn how it works? Head to the next page!
+
+<Cards>
+  <Card title="What is a Neural Network?" href="/docs/getting-started/neural-networks" />
+</Cards>

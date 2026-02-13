@@ -1,0 +1,118 @@
+---
+title: What is a Neural Network?
+description: A beginner-friendly introduction to neural networks
+---
+
+# What is a Neural Network?
+
+Before we dive into GPT, let's understand what a **neural network** is.
+
+## The Simple Idea
+
+A neural network is a mathematical function that transforms **inputs** into **outputs**. It's inspired by how brains work (loosely), but it's really just a lot of multiplication and addition.
+
+Think of it like this:
+
+```
+Input (x) → [Transformation] → Output (y)
+```
+
+For example:
+- Input: An image of a cat
+- Output: The number 0.87 (meaning "87% sure it's a cat")
+
+## Visual: A Simple Neural Network
+
+```
+        Layer 1          Layer 2
+         ┌───┐            ┌───┐
+    x ──►│ ○ │───►        │ ○ │───► y
+         │ ○ │───►  ──►  │ ○ │───►
+    x ──►│ ○ │───►        │ ○ │───► y
+         │ ○ │───►        │ ○ │───►
+         └───┘            └───┘
+          │                │
+          └──── weights ────┘
+
+Each circle is a "neuron" - just a number!
+The lines are weights - just multipliers!
+```
+
+## A Simple Example: The Linear Model
+
+The simplest neural network is just a **linear function**:
+
+```
+y = w * x + b
+```
+
+| Symbol | Name | What it does |
+|--------|------|--------------|
+| `x` | Input | The data you feed in |
+| `w` | Weight | How much to scale the input |
+| `b` | Bias | A constant offset |
+| `y` | Output | The prediction |
+
+### Concrete Example
+
+Let's say you want to predict house prices:
+
+- `x` = house size in square feet (say, 2000)
+- `w` = $100 (each square foot adds $100)
+- `b` = $50,000 (base price)
+
+```
+y = 100 * 2000 + 50000 = $250,000
+```
+
+The network "learns" the right values for `w` and `b` by looking at many examples of house sizes and prices.
+
+## Adding Non-Linearity
+
+Linear functions can only draw straight lines. But the world isn't always linear. That's where **activation functions** come in.
+
+```
+y = activation(w * x + b)
+```
+
+Common activations:
+
+| Activation | Formula | What it does |
+|------------|---------|--------------|
+| ReLU | `max(0, x)` | Turns negatives to zero |
+| Sigmoid | `1 / (1 + e^-x)` | Squashes to 0-1 |
+| Tanh | `(e^x - e^-x) / (e^x + e^-x)` | Squashes to -1 to 1 |
+
+## What is a "Layer"?
+
+When we stack multiple transformations together, we get layers:
+
+```
+Input → [Linear + Activation] → [Linear + Activation] → Output
+   x →     Layer 1            Layer 2            y
+```
+
+Each layer transforms the data a bit more. The more layers, the more complex patterns the network can learn.
+
+## Neural Network in One Sentence
+
+**A neural network is a flexible mathematical function made of weighted sums and nonlinearities that can learn to approximate any relationship between inputs and outputs.**
+
+## From Neural Network to GPT
+
+GPT is a specific type of neural network called a **Transformer**. It uses:
+- Many layers (called "transformer blocks")
+- A special mechanism called "self-attention"
+- Very large numbers of parameters
+
+But at its core, it's still just:
+1. Multiply things together
+2. Add them up
+3. Apply some nonlinearities
+4. Repeat
+
+That's it!
+
+## Next Steps
+
+Now that you understand what a neural network is, let's learn about the specific type used in GPT.

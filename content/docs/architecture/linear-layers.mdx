@@ -1,0 +1,121 @@
+---
+title: Linear Layers
+description: The fundamental building block of neural networks
+---
+
+# Linear Layers
+
+The **linear layer** (also called "fully connected" or "dense" layer) is the most basic building block of neural networks.
+
+## What Does a Linear Layer Do?
+
+A linear layer applies this formula:
+
+```
+y = x × W^T + b
+```
+
+In plain English: "multiply the input by the weights, then add the bias."
+
+## In microgpt
+
+Here's how it's implemented:
+
+```python
+def linear(x, w):
+    return [sum(wi * xi for wi, xi in zip(wo, x)) for wo in w]
+```
+
+This is matrix multiplication!
+
+## Breaking It Down
+
+Let's trace through a simple example:
+
+```
+Input (x):     [x0, x1, x2]         (3 values)
+Weights (w):   [[w00, w01, w02],    (4 × 3 matrix)
+                [w10, w11, w12],
+                [w20, w21, w22],
+                [w30, w31, w32]]
+
+Output (y):    [y0, y1, y2, y3]     (4 values)
+```
+
+Where:
+```
+y0 = x0*w00 + x1*w01 + x2*w02
+y1 = x0*w10 + x1*w11 + x2*w12
+y2 = x0*w20 + x1*w21 + x2*w22
+y3 = x0*w30 + x1*w31 + x2*w32
+```
+
+## The Matrix Math
+
+```python
+# Each output is a dot product of input with a row of weights
+y[j] = sum(x[i] * w[j][i]) for all i
+```
+
+The key insight: **each output is a weighted sum of all inputs**.
+
+## Visual Intuition
+
+```
+Input          Weights                Output
+───┐           ┌─────────────────┐     ┌───┐
+x0 ┼──────────►│ w00   w01   w02 ├────►│ y0│
+   │           │ w10   w11   w12 │     │ y1│
+x1 ┼──────────►│ w20   w21   w22 │────►│ y2│
+   │           │ w30   w31   w32 │     │ y3│
+x2 ┼──────────►└─────────────────┘     └───┘
+```
+
+Each output "looks at" every input, weighted by the corresponding weight.
+
+## Why Is It Called "Linear"?
+
+Because it's a linear function:
+- If you double the input, the output doubles
+- No curves, no bends
+
+This is in contrast to "nonlinear" layers that use activation functions.
+
+## The Bias Term
+
+In the full version, there's also a bias:
+
+```
+y = x × W + b
+```
+
+Microgpt doesn't use biases (simplification), but in general:
+- Weights (W): control the strength of connections
+- Bias (b): allow shifting the output up or down
+
+## Shape Summary
+
+```
+Input shape:   (nin,)      - nin inputs
+Weight shape:  (nout, nin) - nout outputs, each connected to nin inputs
+Output shape: (nout,)     - nout outputs
+```
+
+## In the Model
+
+Linear layers are used throughout the GPT architecture:
+
+1. **Attention projections**: Q, K, V matrices
+2. **MLP layers**: expand and contract dimensions
+3. **Output projection**: project back to vocabulary size
+
+## Summary
+
+A **linear layer** is the fundamental building block:
+
+1. Takes an input vector
+2. Multiplies by a weight matrix
+3. Produces an output vector
+4. Each output is a weighted sum of all inputs
+
+Linear layers can only learn linear relationships. To learn complex patterns, we need nonlinear activation functions between them.

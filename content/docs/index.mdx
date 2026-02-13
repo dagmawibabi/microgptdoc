@@ -1,13 +1,55 @@
 ---
-title: Hello World
-description: Your first document
+title: Documentation
+description: Learn how microgpt works - a minimal GPT implementation in pure Python
+options:
+  icon: BookOpen
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+# microgpt Documentation
 
-## What is Next?
+A complete, working GPT model in **~250 lines of pure Python** with zero dependencies.
+
+## What is microgpt?
+
+microgpt is an educational implementation by [Andrej Karpathy](https://karpathy.ai/) that demonstrates exactly how a language model works. No PyTorch, no NumPy—just Python's standard library.
+
+```python
+python microgpt.py
+```
+
+That's it. The model downloads a dataset, trains, and generates text.
+
+## Quick Links
 
 <Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
+  <Card title="Getting Started" href="/docs/getting-started" />
+  <Card title="Quick Start" href="/docs/getting-started/quickstart" />
+  <Card title="Neural Networks" href="/docs/getting-started/neural-networks" />
+  <Card title="Transformers" href="/docs/getting-started/transformers" />
 </Cards>
+
+## Documentation Sections
+
+| Section | Description |
+|---------|-------------|
+| [Getting Started](/docs/getting-started) | Introduction and overview |
+| [Tokenization](/docs/tokenization) | Converting text to numbers |
+| [Foundations](/docs/foundations/gradients) | Gradients and parameters |
+| [Architecture](/docs/architecture/attention) | The GPT model components |
+| [Training](/docs/training/training-loop) | How models learn |
+| [Autograd](/docs/autograd) | Automatic differentiation |
+| [Generation](/docs/generation/inference) | Text generation |
+| [Code Reference](/docs/reference/code-reference) | Line-by-line explanation |
+
+## How It Works
+
+The entire pipeline:
+
+1. **Tokenize** - Convert characters to integers
+2. **Embed** - Convert integers to vectors
+3. **Transform** - Apply attention and MLP layers
+4. **Predict** - Generate probability distributions
+5. **Train** - Use backpropagation to improve
+6. **Generate** - Sample from the model
+
+Each component is explained in detail in the sections above.

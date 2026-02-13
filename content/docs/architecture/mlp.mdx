@@ -1,0 +1,148 @@
+---
+title: The MLP Block
+description: The feed-forward network in transformers
+---
+
+# The MLP Block
+
+After attention, each position goes through a **feed-forward network** (also called MLP - Multi-Layer Perceptron). This processes the information gathered by attention.
+
+## What Does the MLP Do?
+
+The MLP applies a simple transformation to each position independently:
+
+```python
+# Expand dimension (4x)
+x = linear(x, state_dict[f'layer{li}.mlp_fc1'])
+
+# Apply square ReLU activation
+x = [xi.relu() ** 2 for xi in x]
+
+# Contract back to original dimension
+x = linear(x, state_dict[f'layer{li}.mlp_fc2'])
+```
+
+## Step by Step
+
+### Step 1: Expand
+
+```
+Input (n_embd=16):   [x0, x1, ..., x15]
+        ↓ linear (4× expansion)
+Output:              [x0, ..., x63]  (64 = 4 × 16)
+```
+
+The vector grows 4× larger. This gives the model more "capacity" to process information.
+
+### Step 2: Activate (Square ReLU)
+
+```python
+x = [xi.relu() ** 2 for xi in x]
+```
+
+This applies **square ReLU**:
+- If x > 0: output = x²
+- If x ≤ 0: output = 0
+
+```
+Input:  [2.0, -1.0, 0.5, -0.5]
+Output: [4.0,  0  , 0.25,  0  ]
+```
+
+This introduces nonlinearity - allowing the network to learn complex patterns.
+
+### Step 3: Contract
+
+```
+Input (64):  [x0, ..., x63]
+        ↓ linear (4× contraction)
+Output:      [x0, ..., x15]  (back to 16)
+```
+
+The vector shrinks back to its original size.
+
+## Why Expand and Contract?
+
+This pattern (expand → nonlinear → contract) is common in neural networks:
+
+| Benefit | Explanation |
+|---------|-------------|
+| More parameters | More weights to learn from |
+| Non-linearity | The activation function adds complexity |
+| Information processing | Expand gives "thinking space", contract summarizes |
+
+## Square ReLU
+
+microgpt uses a specific activation: **Square ReLU** (ReLU squared):
+
+```python
+def relu(self):
+    return max(0, self)  # Standard ReLU
+
+# Then squared:
+output = relu(x) ** 2
+```
+
+This is different from standard ReLU or GeLU (used in GPT-2). It's simpler!
+
+## The MLP in Context
+
+Here's how the MLP fits into a transformer block:
+
+```python
+# 1. Attention block
+x_residual = x          # Save for residual
+x = attention_block(x)  # Process with attention
+x = x + x_residual     # Add residual
+
+# 2. MLP block
+x_residual = x          # Save for residual
+x = rmsnorm(x)         # Normalize
+x = mlp_block(x)       # Process with MLP
+x = x + x_residual     # Add residual
+```
+
+Each block has: Attention → MLP, both with residual connections.
+
+## Visual Representation
+
+```
+Input x
+   │
+   ▼
+┌────────────────────────────────────┐
+│ 1. Linear (expand)                 │
+│    16 → 64 dimensions              │
+│                                    │
+│ 2. Square ReLU                    │
+│    nonlinearity                    │
+│                                    │
+│ 3. Linear (contract)              │
+│    64 → 16 dimensions             │
+└────────────────────────────────────┘
+   │
+   ▼
+Output x (same size as input)
+```
+
+## Why Per-Position?
+
+The MLP processes each position **independently**:
+
+- Attention shares information between positions
+- MLP processes each position's information locally
+
+This is a key distinction:
+- **Attention**: Information from multiple positions
+- **MLP**: Information from a single position
+
+## Summary
+
+The **MLP block** in transformers:
+
+1. **Expands** dimension 4× for more capacity
+2. **Applies** square ReLU for non-linearity
+3. **Contracts** back to original dimension
+4. **Processes** each position independently
+
+This gives the model extra capacity to process the information gathered by attention!

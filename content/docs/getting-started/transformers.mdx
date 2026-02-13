@@ -1,0 +1,127 @@
+---
+title: What is a Transformer?
+description: Understanding the architecture behind GPT
+---
+
+# What is a Transformer?
+
+A **Transformer** is the type of neural network architecture that powers GPT, BERT, ChatGPT, and most modern AI language models. It was introduced in the famous 2017 paper "Attention Is All You Need."
+
+## The Big Picture
+
+A transformer takes in a sequence of tokens (words or characters) and produces a sequence of predictions:
+
+```
+Input: "The cat sat on the" → Output: "mat"
+```
+
+It processes the entire input at once (not one word at a time), which makes it fast and able to learn long-range dependencies.
+
+## The Two Main Parts
+
+A transformer has two main stages:
+
+```
+Input → [Encoder / Pre-training] → [Output]
+         (understanding)          (generation)
+```
+
+But GPT specifically only uses the **decoder** part (the right side), which is why it's called a "decoder-only" transformer.
+
+## The Core Components
+
+A transformer is made of these parts:
+
+| Component | What it does |
+|-----------|--------------|
+| **Embedding** | Convert tokens to number vectors |
+| **Positional Encoding** | Tell the model where each token is |
+| **Self-Attention** | Let each token "look at" other tokens |
+| **Feed-Forward Network** | Process each position's information |
+| **Layer Norm** | Keep numbers in a good range |
+| **Residual Connections** | Help gradients flow |
+
+We'll cover each of these in detail.
+
+## What Makes Transformers Special?
+
+### 1. Self-Attention
+
+This is the key innovation. Each position in the sequence can "attend to" (look at) every other position:
+
+```
+Position 0 ("The"): looks at positions 1, 2, 3, 4...
+Position 1 ("cat"): looks at positions 0, 2, 3, 4...
+```
+
+This allows the model to learn relationships between words, even if they're far apart in the sentence.
+
+### 2. Parallel Processing
+
+Unlike older models (RNNs, LSTMs), transformers can process all positions at once. This makes them much faster to train.
+
+### 3. Scalability
+
+Transformers work well with:
+- More layers
+- More attention heads
+- More data
+
+This is why GPT-3 has 96 layers and GPT-4 is even larger.
+
+## How GPT Uses Transformers
+
+GPT is a "decoder-only" transformer:
+
+```
+Input tokens → [Block 1] → [Block 2] → ... [Block N] → Output predictions
+              (attention + MLP) (attention + MLP)          (next token)
+```
+
+Each "Block" contains:
+1. **Multi-Head Self-Attention** - Let tokens talk to each other
+2. **Feed-Forward Network** - Process each token's information
+3. **Residual Connections** - Add the input back to output
+4. **Layer Norm** - Keep numbers stable
+
+## Why "Attention Is All You Need"
+
+The original paper title suggests that attention (specifically self-attention) is the only special mechanism needed. No recurrence, no convolution - just attention.
+
+This was revolutionary because:
+- Attention is simpler than RNNs
+- It captures long-range dependencies better
+- It's more parallelizable
+
+## The Transformer in microgpt
+
+In microgpt.py, the `gpt()` function implements a mini transformer:
+
+```python
+def gpt(token_id, pos_id, keys, values):
+    # 1. Get embeddings
+    tok_emb = state_dict['wte'][token_id]
+    pos_emb = state_dict['wpe'][pos_id]
+    x = [t + p for t, p in zip(tok_emb, pos_emb)]
+    x = rmsnorm(x)
+
+    # 2. Process through layers
+    for li in range(n_layer):
+        x = transformer_block(x, li, keys, values)
+
+    # 3. Output
+    logits = linear(x, state_dict['lm_head'])
+    return logits
+```
+
+We'll break down each part in the following sections.
+
+## Summary
+
+A **Transformer** is a neural network architecture that:
+1. Processes sequences using **self-attention**
+2. Allows every position to "see" every other position
+3. Is highly parallelizable and scalable
+4. Powers all modern language models
+
+GPT uses a "decoder-only" transformer that predicts the next token in a sequence.

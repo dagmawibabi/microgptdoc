@@ -1,0 +1,442 @@
+---
+title: Code Reference
+description: Complete line-by-line reference for microgpt.py
+---
+
+# Code Reference
+
+This is a complete line-by-line reference for `microgpt.py`. Use this to understand exactly what each part of the code does.
+
+## Lines 1-6: Header
+
+```python
+"""
+The most atomic way to train and inference a GPT LLM in pure, dependency-free Python.
+Differences from GPT-2 are minor: rmsnorm instead of layer norm, no biases, square ReLU instead of GeLU nonlinearity, no weight tying.
+The contents of this file is everything algorithmically needed to train a GPT. Everything else is just efficiency.
+Art project by @karpathy.
+"""
+```
+
+This is just a docstring explaining what the file does. It notes that this is a minimal implementation without external dependencies.
+
+## Lines 8-11: Imports
+
+```python
+import os       # for os.path.exists
+import math     # for math.log, math.exp
+import random   # for random.seed, random.choices
+import argparse # for argparse.ArgumentParser
+```
+
+These are all of Python's standard library - no external dependencies needed!
+
+## Lines 13-21: CLI Arguments
+
+```python
+parser = argparse.ArgumentParser()
+parser.add_argument('--n_embd', type=int, default=16, help='Number of channels in the Transformer')
+parser.add_argument('--n_layer', type=int, default=1, help='Number of layers in the Transformer')
+parser.add_argument('--block_size', type=int, default=8, help='Maximum sequence length')
+parser.add_argument('--num_steps', type=int, default=1000, help='Number of training steps')
+parser.add_argument('--n_head', type=int, default=4, help='Number of attention heads in the Transformer')
+parser.add_argument('--learning_rate', type=float, default=1e-2, help='Learning rate')
+args = parser.parse_args()
+```
+
+This sets up command-line arguments so you can customize the model:
+- `n_embd`: Size of embedding vectors (default: 16)
+- `n_layer`: Number of transformer layers (default: 1)
+- `block_size`: Maximum sequence length (default: 8)
+- `num_steps`: How long to train (default: 1000)
+- `n_head`: Number of attention heads (default: 4)
+- `learning_rate`: How fast to learn (default: 0.01)
+
+## Lines 22-24: Configuration
+
+```python
+n_embd, block_size, n_layer, n_head = args.n_embd, args.block_size, args.n_layer, args.n_head
+head_dim = n_embd // n_head
+random.seed(42)
+```
+
+Extract the arguments and compute `head_dim` (dimension per attention head). The random seed ensures reproducible results.
+
+## Lines 26-31: Download Dataset
+
+```python
+if not os.path.exists('input.txt'):
+    import urllib.request
+    urllib.request.urlretrieve('https://raw.githubusercontent.com/karpathy/makemore/refs/heads/master/names.txt', 'input.txt')
+docs = [l.strip() for l in open('input.txt').read().strip().split('\n') if l.strip()]
+random.shuffle(docs)
+```
+
+If `input.txt` doesn't exist, download the names dataset from GitHub. Then read the file, split by newlines, remove empty lines, and shuffle the data.
+
+## Lines 33-39: Build Tokenizer
+
+```python
+chars = ['<BOS>'] + sorted(set(''.join(docs)))
+vocab_size = len(chars)
+stoi = { ch:i for i, ch in enumerate(chars) } # string to integer
+itos = { i:ch for i, ch in enumerate(chars) } # integer to string
+BOS = stoi['<BOS>']
+print(f"vocab size: {vocab_size}, num docs: {len(docs)}")
+```
+
+Build the vocabulary:
+1. Get all unique characters from the dataset
+2. Add the special `<BOS>` (beginning of sequence) token
+3. Sort for consistency
+4. Create lookup tables (string → integer, integer → string)
+5. Get the index of `<BOS>` token
+
+## Lines 41-50: Value Class Definition
+
+```python
+class Value:
+    """ stores a single scalar value and its gradient """
+
+    def __init__(self, data, _children=(), _op=''):
+        self.data = data
+        self.grad = 0
+        self._backward = lambda: None
+        self._prev = set(_children)
+        self._op = _op # the op that produced this node, for graphviz / debugging / etc
+```
+
+The `Value` class is the core of the autograd engine. Each Value stores:
+- `data`: The actual number
+- `grad`: The gradient (initialized to 0)
+- `_backward`: Function to compute gradient
+- `_prev`: Parent values that created this one
+- `_op`: What operation created this value
+
+## Lines 52-59: Addition
+
+```python
+def __add__(self, other):
+    other = other if isinstance(other, Value) else Value(other)
+    out = Value(self.data + other.data, (self, other), '+')
+    def _backward():
+        self.grad += out.grad
+        other.grad += out.grad
+    out._backward = _backward
+    return out
+```
+
+When you add two Values, the gradient flows equally to both inputs (chain rule: ∂(a+b)/∂a = 1).
+
+## Lines 61-68: Multiplication
+
+```python
+def __mul__(self, other):
+    other = other if isinstance(other, Value) else Value(other)
+    out = Value(self.data * other.data, (self, other), '*')
+    def _backward():
+        self.grad += other.data * out.grad
+        other.grad += self.data * out.grad
+    out._backward = _backward
+    return out
+```
+
+Multiplication gradient: each input gets the gradient scaled by the other input (chain rule: ∂(a×b)/∂a = b).
+
+## Lines 70-76: Power
+
+```python
+def __pow__(self, other):
+    assert isinstance(other, (int, float)), "only supporting int/float powers for now"
+    out = Value(self.data**other, (self,), f'**{other}')
+    def _backward():
+        self.grad += (other * self.data**(other-1)) * out.grad
+    out._backward = _backward
+    return out
+```
+
+Power rule: if y = x^n, then dy/dx = n × x^(n-1).
+
+## Lines 78-83: Logarithm
+
+```python
+def log(self):
+    out = Value(math.log(self.data), (self,), 'log')
+    def _backward():
+        self.grad += (1 / self.data) * out.grad
+    out._backward = _backward
+    return out
+```
+
+Derivative of log(x) is 1/x.
+
+## Lines 85-90: Exponential
+
+```python
+def exp(self):
+    out = Value(math.exp(self.data), (self,), 'exp')
+    def _backward():
+        self.grad += out.data * out.grad
+    out._backward = _backward
+    return out
+```
+
+Exponential is its own derivative: d/dx(e^x) = e^x.
+
+## Lines 92-97: ReLU Activation
+
+```python
+def relu(self):
+    out = Value(0 if self.data < 0 else self.data, (self,), 'ReLU')
+    def _backward():
+        self.grad += (out.data > 0) * out.grad
+    out._backward = _backward
+    return out
+```
+
+ReLU (Rectified Linear Unit): if input > 0, output = input; otherwise output = 0. Gradient passes through if positive.
+
+## Lines 99-113: Backward Pass
+
+```python
+def backward(self):
+    # topological order all of the children in the graph
+    topo = []
+    visited = set()
+    def build_topo(v):
+        if v not in visited:
+            visited.add(v)
+            for child in v._prev:
+                build_topo(child)
+            topo.append(v)
+    build_topo(self)
+    # go one variable at a time and apply the chain rule to get its gradient
+    self.grad = 1
+    for v in reversed(topo):
+        v._backward()
+```
+
+This is the backpropagation algorithm:
+1. Build a topological sort of all values (process children before parents)
+2. Start with gradient = 1 at the output
+3. Go in reverse order and call each `_backward()` function
+
+## Lines 115-122: Operator Overloading
+
+```python
+def __neg__(self): return self * -1
+def __radd__(self, other): return self + other
+def __sub__(self, other): return self + (-other)
+def __rsub__(self, other): return other + (-self)
+def __rmul__(self, other): return self * other
+def __truediv__(self, other): return self * other**-1
+def __rtruediv__(self, other): return other * self**-1
+def __repr__(self): return f"Value(data={self.data}, grad={self.grad})"
+```
+
+These allow natural Python syntax like `a - b`, `3 * x`, `1 / x`.
+
+## Lines 124-135: Parameter Initialization
+
+```python
+matrix = lambda nout, nin, std=0.02: [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
+state_dict = {'wte': matrix(vocab_size, n_embd), 'wpe': matrix(block_size, n_embd), 'lm_head': matrix(vocab_size, n_embd)}
+for i in range(n_layer):
+    state_dict[f'layer{i}.attn_wq'] = matrix(n_embd, n_embd)
+    state_dict[f'layer{i}.attn_wk'] = matrix(n_embd, n_embd)
+    state_dict[f'layer{i}.attn_wv'] = matrix(n_embd, n_embd)
+    state_dict[f'layer{i}.attn_wo'] = matrix(n_embd, n_embd, std=0)
+    state_dict[f'layer{i}.mlp_fc1'] = matrix(4 * n_embd, n_embd)
+    state_dict[f'layer{i}.mlp_fc2'] = matrix(n_embd, 4 * n_embd, std=0)
+params = [p for mat in state_dict.values() for row in mat for p in row]
+print(f"num params: {len(params)}")
+```
+
+Initialize all model parameters:
+- `matrix` lambda: creates 2D arrays of Value objects
+- `wte`: token embedding (vocab_size × n_embd)
+- `wpe`: position embedding (block_size × n_embd)
+- `lm_head`: language model head (vocab_size × n_embd)
+- Attention weights: Q, K, V projections
+- MLP weights: expand and contract layers
+- Flatten all params into a single list for easy iteration
+
+## Lines 137-139: Linear Layer
+
+```python
+def linear(x, w):
+    return [sum(wi * xi for wi, xi in zip(wo, x)) for wo in w]
+```
+
+Simple linear layer: output = input × weights^T. Each output element is a dot product of weights and input.
+
+## Lines 141-145: Softmax
+
+```python
+def softmax(logits):
+    max_val = max(val.data for val in logits)
+    exps = [(val - max_val).exp() for val in logits]
+    total = sum(exps)
+    return [e / total for e in exps]
+```
+
+Softmax converts logits to probabilities:
+1. Subtract max for numerical stability
+2. Exponentiate each value
+3. Normalize by the sum
+
+## Lines 147-150: RMSNorm
+
+```python
+def rmsnorm(x):
+    ms = sum(xi * xi for xi in x) / len(x)
+    scale = (ms + 1e-5) ** -0.5
+    return [xi * scale for xi in x]
+```
+
+RMSNorm normalization:
+1. Compute mean square
+2. Compute scale factor = 1 / sqrt(ms + ε)
+3. Apply scaling to each element
+
+## Lines 152-188: GPT Forward Pass
+
+```python
+def gpt(token_id, pos_id, keys, values):
+    tok_emb = state_dict['wte'][token_id] # token embedding
+    pos_emb = state_dict['wpe'][pos_id] # position embedding
+    x = [t + p for t, p in zip(tok_emb, pos_emb)] # joint token and position embedding
+    x = rmsnorm(x)
+
+    for li in range(n_layer):
+        # 1) Multi-head attention block
+        x_residual = x
+        x = rmsnorm(x)
+        q = linear(x, state_dict[f'layer{li}.attn_wq'])
+        k = linear(x, state_dict[f'layer{li}.attn_wk'])
+        v = linear(x, state_dict[f'layer{li}.attn_wv'])
+        keys[li].append(k)
+        values[li].append(v)
+        x_attn = []
+        for h in range(n_head):
+            hs = h * head_dim
+            q_h = q[hs:hs+head_dim]
+            k_h = [ki[hs:hs+head_dim] for ki in keys[li]]
+            v_h = [vi[hs:hs+head_dim] for vi in values[li]]
+            attn_logits = [sum(q_h[j] * k_h[t][j] for j in range(head_dim)) / head_dim**0.5 for t in range(len(k_h))]
+            attn_weights = softmax(attn_logits)
+            head_out = [sum(attn_weights[t] * v_h[t][j] for t in range(len(v_h))) for j in range(head_dim)]
+            x_attn.extend(head_out)
+        x = linear(x_attn, state_dict[f'layer{li}.attn_wo'])
+        x = [a + b for a, b in zip(x, x_residual)]
+        # 2) MLP block
+        x_residual = x
+        x = rmsnorm(x)
+        x = linear(x, state_dict[f'layer{li}.mlp_fc1'])
+        x = [xi.relu() ** 2 for xi in x]
+        x = linear(x, state_dict[f'layer{li}.mlp_fc2'])
+        x = [a + b for a, b in zip(x, x_residual)]
+
+    logits = linear(x, state_dict['lm_head'])
+    return logits
+```
+
+This is the main GPT forward pass:
+1. Get token and position embeddings, add them together
+2. Apply RMSNorm
+3. For each layer:
+   - Multi-head self-attention (Q, K, V projections, attention, output projection, residual)
+   - MLP block (expand, square ReLU, contract, residual)
+4. Project to vocabulary size
+
+## Lines 190-194: Optimizer Setup
+
+```python
+learning_rate = args.learning_rate
+beta1, beta2, eps_adam = 0.9, 0.95, 1e-8
+m = [0.0] * len(params) # first moment (momentum)
+v = [0.0] * len(params) # second moment (RMSProp)
+```
+
+Set up Adam optimizer:
+- `beta1`: momentum decay
+- `beta2`: RMSProp decay
+- `eps_adam`: small value to prevent division by zero
+- `m`: momentum accumulator
+- `v`: RMSProp accumulator
+
+## Lines 196-228: Training Loop
+
+```python
+lossf_history = []
+for step in range(args.num_steps):
+    doc = docs[step % len(docs)]
+    tokens = [BOS] + [stoi[ch] for ch in doc] + [BOS]
+    n = min(block_size, len(tokens) - 1)
+
+    keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
+    losses = []
+    for pos_id in range(n):
+        token_id, target_id = tokens[pos_id], tokens[pos_id + 1]
+        logits = gpt(token_id, pos_id, keys, values)
+        probs = softmax(logits)
+        loss_t = -probs[target_id].log()
+        losses.append(loss_t)
+    loss = (1 / n) * sum(losses)
+    loss.backward()
+
+    lr_t = learning_rate * (1 - step / args.num_steps)
+    for i, p in enumerate(params):
+        m[i] = beta1 * m[i] + (1 - beta1) * p.grad
+        v[i] = beta2 * v[i] + (1 - beta2) * p.grad ** 2
+        m_hat = m[i] / (1 - beta1 ** (step + 1))
+        v_hat = v[i] / (1 - beta2 ** (step + 1))
+        p.data -= lr_t * m_hat / (v_hat ** 0.5 + eps_adam)
+        p.grad = 0
+
+    print(f"step {step+1} / {args.num_steps} | loss {loss.data:.4f}")
+    lossf_history.append(loss.data)
+```
+
+The training loop:
+1. Get a training example (cycle through dataset)
+2. Tokenize with BOS tokens
+3. Forward pass for each position (autoregressive)
+4. Compute cross-entropy loss
+5. Backward pass to compute gradients
+6. Adam optimizer update with learning rate decay
+7. Print progress
+
+## Lines 230-244: Inference
+
+```python
+temperature = 0.5
+print("\n--- generation ---")
+for sample_idx in range(5):
+    keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
+    token_id = BOS
+    print(f"sample {sample_idx}: ", end="")
+    for pos_id in range(block_size):
+        logits = gpt(token_id, pos_id, keys, values)
+        probs = softmax([l / temperature for l in logits])
+        token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
+        if token_id == BOS:
+            break
+        print(itos[token_id], end="")
+    print()
+```
+
+Generate 5 new samples:
+1. Start with BOS token
+2. For each position, get next token probabilities
+3. Apply temperature (lower = more deterministic)
+4. Sample from distribution
+5. Stop at BOS or max length
+
+## Line 246: Final Loss
+
+```python
+print(f"mean loss last 50 steps: {sum(lossf_history[-50:]) / len(lossf_history[-50:]):.4f}")
+```
+
+Print the average loss over the last 50 steps as a final metric.

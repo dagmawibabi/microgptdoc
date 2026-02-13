@@ -1,0 +1,136 @@
+---
+title: The Vocabulary
+description: Understanding vocabularies and special tokens in language models
+---
+
+# The Vocabulary
+
+In the last section, we learned about tokenization. Now let's dive deeper into the **vocabulary** - the set of all tokens the model knows.
+
+## What is a Vocabulary?
+
+The **vocabulary** is simply the complete list of all tokens (characters, in microgpt's case) that the model can work with.
+
+```
+vocab_size = 27  # 26 letters + 1 special token
+```
+
+## Building the Vocabulary
+
+Here's the code from microgpt that builds the vocabulary:
+
+```python
+# Add special token first
+chars = ['`&lt;BOS&gt;`']
+
+# Add all unique characters from the dataset
+unique_chars = set(''.join(docs))  # All characters in all names
+chars.extend(sorted(unique_chars))
+
+# Sort for consistency
+chars = sorted(chars)
+
+# Now we have:
+# chars = ['`&lt;BOS&gt;`', 'a', 'b', 'c', ..., 'z']
+```
+
+## Creating Lookup Tables
+
+We need two lookup tables:
+
+```python
+# string to integer
+stoi = { ch:i for i, ch in enumerate(chars) }
+
+# integer to string
+itos = { i:ch for i, ch in enumerate(chars) }
+```
+
+These let us convert back and forth:
+
+```
+"a" ←→ 1
+"b" ←→ 2
+"`&lt;BOS&gt;`" ←→ 0
+```
+
+## Special Tokens
+
+Special tokens are tokens with specific meanings. They're not actual characters - they serve as signals to the model.
+
+### BOS (Beginning of Sequence)
+
+```python
+BOS = stoi['`&lt;BOS&gt;`']  # = 0
+```
+
+``&lt;BOS&gt;`` tells the model: "This is the start of a sequence."
+
+Why is this important?
+
+**Without BOS:**
+- Input: "emma" → Model might think it's in the middle of something
+
+**With BOS:**
+- Input: "`&lt;BOS&gt;` emma" → Model knows this is a complete thought
+
+During generation, when the model predicts ``&lt;BOS&gt;``, it means "I've completed the name."
+
+## Vocabulary Size
+
+The vocabulary size affects:
+
+| Aspect | Small Vocab | Large Vocab |
+|--------|-------------|-------------|
+| Model size | Smaller | Larger |
+| Memory | Less | More |
+| Granularity | Coarse | Fine |
+| Unknown chars | More likely | Rare |
+
+For character-level:
+- Small: ~27 tokens (a-z + special)
+- English text: ~100 tokens (includes punctuation, numbers)
+
+For word-level:
+- Small: ~10,000 words
+- GPT-4: ~100,000+ tokens (uses subword)
+
+## The Vocab in Action
+
+Here's how microgpt uses the vocabulary:
+
+```python
+# Encoding a document
+doc = "emma"
+tokens = [BOS] + [stoi[ch] for ch in doc] + [BOS]
+# tokens = [0, 5, 13, 13, 1, 0]
+
+# Decoding predictions
+predicted_token_id = 5
+next_char = itos[predicted_token_id]
+# next_char = 'e'
+```
+
+## Why Sort the Vocabulary?
+
+```python
+chars = sorted(chars)
+```
+
+Sorting the vocabulary makes the encoding **deterministic**. Without sorting, the vocabulary order would depend on Python's set iteration order (which can vary).
+
+```
+Before sorting: {'a', 'z', 'm'} → unpredictable order
+After sorting:  ['a', 'm', 'z']  → always the same
+```
+
+## Summary
+
+The **vocabulary** is the set of all tokens the model knows:
+
+1. **Build** from unique characters in data
+2. **Sort** for consistency
+3. **Add** special tokens like ``&lt;BOS&gt;``
+4. **Create** lookup tables for encoding/decoding
+
+The vocabulary size is a key hyperparameter that affects model size and capability.

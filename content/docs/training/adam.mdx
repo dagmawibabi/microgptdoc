@@ -1,0 +1,141 @@
+---
+title: The Adam Optimizer
+description: How weights are updated efficiently
+---
+
+# The Adam Optimizer
+
+The **Adam optimizer** is a sophisticated method for updating model weights. It combines ideas from two other optimizers: momentum and RMSProp.
+
+## Why Do We Need an Optimizer?
+
+After computing gradients (the "direction" to move), we need to actually update the weights:
+
+```
+weight = weight - learning_rate * gradient
+```
+
+This is called **gradient descent**. But there are better ways!
+
+## Problems with Simple Gradient Descent
+
+| Problem | Description | Solution |
+|---------|-------------|----------|
+| Slow convergence | Takes tiny steps | Add momentum |
+| Oscillation | Goes back and forth | Dampen oscillations |
+| Different learning rates | Some parameters need more/less | Adaptive per-parameter rates |
+
+Adam addresses all of these!
+
+## The Adam Algorithm
+
+Here's the Adam update in microgpt:
+
+```python
+beta1, beta2, eps_adam = 0.9, 0.95, 1e-8
+
+for i, p in enumerate(params):
+    # Momentum (first moment)
+    m[i] = beta1 * m[i] + (1 - beta1) * p.grad
+
+    # RMSProp (second moment)
+    v[i] = beta2 * v[i] + (1 - beta2) * p.grad ** 2
+
+    # Bias correction
+    m_hat = m[i] / (1 - beta1 ** (step + 1))
+    v_hat = v[i] / (1 - beta2 ** (step + 1))
+
+    # Update
+    p.data -= lr_t * m_hat / (v_hat ** 0.5 + eps_adam)
+```
+
+Let's break this down!
+
+## Component 1: Momentum
+
+```python
+m[i] = beta1 * m[i] + (1 - beta1) * p.grad
+```
+
+Momentum is like a ball rolling downhill:
+- If gradient keeps pointing same direction, we speed up
+- If gradient keeps changing, we slow down
+
+The `beta1 = 0.9` means:
+- 90% of the previous momentum is retained
+- 10% is the new gradient
+
+## Component 2: RMSProp
+
+```python
+v[i] = beta2 * v[i] + (1 - beta2) * p.grad ** 2
+```
+
+RMSProp (Root Mean Square Propagation) adapts the learning rate:
+- Large gradients → larger denominator → smaller update
+- Small gradients → smaller denominator → larger update
+
+The `beta2 = 0.95` means:
+- 95% of the previous squared gradient is retained
+
+## Component 3: Bias Correction
+
+```python
+m_hat = m[i] / (1 - beta1 ** (step + 1))
+v_hat = v[i] / (1 - beta2 ** (step + 1))
+```
+
+At the start of training, momentum and RMSProp are initialized to 0. This biases the early estimates. The correction removes this bias.
+
+## Component 4: The Update
+
+```python
+p.data -= lr_t * m_hat / (v_hat ** 0.5 + eps_adam)
+```
+
+Finally, we update the weight:
+- Use the momentum direction (m_hat)
+- Scaled by the adaptive learning rate (1 / sqrt(v_hat))
+- The `eps_adam` (1e-8) prevents division by zero
+
+## Visual Intuition
+
+```
+Without Adam:
+  weights update by: gradient * learning_rate
+  (all parameters update at same rate)
+
+With Adam:
+  weights update by: momentum_direction / sqrt(squared_gradients)
+  (each parameter updates at its own rate)
+```
+
+## Why Does Adam Work So Well?
+
+| Benefit | How Adam Handles It |
+|---------|---------------------|
+| Fast convergence | Momentum speeds up in consistent directions |
+| Escapes local minima | Momentum helps push through flat regions |
+| Handles different scales | RMSProp adapts per parameter |
+| Stable updates | Bias correction prevents early instability |
+
+## The Learning Rate Schedule
+
+```python
+lr_t = learning_rate * (1 - step / args.num_steps)
+```
+
+The learning rate starts at `learning_rate` and linearly decreases to 0. This helps:
+- Start with fast learning
+- Fine-tune at the end with small updates
+
+## Summary
+
+**Adam** is an adaptive optimizer that:
+
+1. **Momentum** (beta1): Adds "inertia" to updates
+2. **RMSProp** (beta2): Adapts learning rate per parameter
+3. **Bias correction**: Fixes initial estimate bias
+4. **Learning rate schedule**: Decays learning rate over time
+
+This combination makes Adam one of the most popular optimizers for deep learning!

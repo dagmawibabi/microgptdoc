@@ -1,0 +1,185 @@
+---
+title: The Autograd Engine
+description: Building a neural network framework from scratch
+---
+
+# The Autograd Engine
+
+The **autograd** (automatic gradient) engine is one of the most important parts of any neural network framework. It's the system that automatically calculates how to adjust weights to improve the model.
+
+## Why Do We Need Autograd?
+
+When training a neural network:
+
+1. **Forward pass**: Run input through the model
+2. **Calculate loss**: Compare prediction to correct answer
+3. **Backward pass**: Figure out how to change each weight
+4. **Update weights**: Make the changes
+
+The **backward pass** is where we need autograd. It's the "learning" part.
+
+## The Value Class
+
+At the heart of microgpt's autograd is the `Value` class:
+
+```python
+class Value:
+    """ stores a single scalar value and its gradient """
+
+    def __init__(self, data, _children=(), _op=''):
+        self.data = data      # The actual number
+        self.grad = 0        # The gradient
+        self._backward = lambda: None  # How to compute gradient
+        self._prev = set(_children)    # What created this value
+        self._op = _op                 # What operation was performed
+```
+
+Each `Value` object stores:
+- `data`: The actual number (like 3.14)
+- `grad`: The gradient (how much the loss changes if this value changes)
+- `_backward`: A function that computes this value's contribution to the gradient
+- `_prev`: Links to the values that created this one (the computation graph)
+- `_op`: What operation created this value (for debugging)
+
+## Why Wrap Numbers?
+
+You might wonder: why not just use regular Python numbers?
+
+Because we need to track:
+1. What calculations were performed
+2. How each calculation affects the final output
+3. How to "undo" the calculation to find gradients
+
+By wrapping numbers in the `Value` class, we can track all of this automatically.
+
+## The Computation Graph
+
+When we do math with `Value` objects, Python automatically builds a **computation graph**:
+
+```python
+a = Value(2.0)
+b = Value(3.0)
+c = a * b  # Creates a new Value with _prev = {a, b}
+d = c + a  # Creates a new Value with _prev = {c, a}
+```
+
+This creates a graph:
+
+```
+a (2.0)
+    ├── c = a * b ──┐
+b (3.0)            ├── d = c + a
+                   └── (output)
+```
+
+This graph lets us trace back from the output to find how each input affected it.
+
+## Operations and Their Gradients
+
+The `Value` class defines mathematical operations. Let's look at how each one works.
+
+### Addition
+
+```python
+def __add__(self, other):
+    other = other if isinstance(other, Value) else Value(other)
+    out = Value(self.data + other.data, (self, other), '+')
+
+    def _backward():
+        self.grad += out.grad
+        other.grad += out.grad
+
+    out._backward = _backward
+    return out
+```
+
+**What it does:**
+- Adds the values together
+- The gradient flows equally to both inputs
+
+**Why?** If `c = a + b`, then:
+- `∂c/∂a = 1` (changing a by 1 changes c by 1)
+- `∂c/∂b = 1` (changing b by 1 changes c by 1)
+
+### Multiplication
+
+```python
+def __mul__(self, other):
+    other = other if isinstance(other, Value) else Value(other)
+    out = Value(self.data * other.data, (self, other), '*')
+
+    def _backward():
+        self.grad += other.data * out.grad
+        other.grad += self.data * out.grad
+
+    out._backward = _backward
+    return out
+```
+
+**What it does:**
+- Multiplies the values together
+- Each input gets the gradient scaled by the other input
+
+**Why?** If `c = a * b`, then:
+- `∂c/∂a = b` (changing a by 1 changes c by b)
+- `∂c/∂b = a` (changing b by 1 changes c by a)
+
+### ReLU Activation
+
+```python
+def relu(self):
+    out = Value(0 if self.data < 0 else self.data, (self,), 'ReLU')
+
+    def _backward():
+        self.grad += (out.data > 0) * out.grad
+
+    out._backward = _backward
+    return out
+```
+
+**What it does:**
+- Turns negative numbers to zero
+- If input was positive, gradient passes through (×1)
+- If input was negative, gradient is blocked (×0)
+
+## Python Operator Overloading
+
+Python lets us define what operators like `+`, `*`, `-` do for our class:
+
+```python
+# These all work automatically!
+a + b      # calls a.__add__(b)
+a * b      # calls a.__mul__(b)
+a - b      # calls a.__sub__(b)
+a ** 2     # calls a.__pow__(2)
+-a        # calls a.__neg__()
+```
+
+We also add convenience methods:
+
+```python
+def __neg__(self): return self * -1
+def __radd__(self, other): return self + other
+def __sub__(self, other): return self + (-other)
+def __rsub__(self, other): return other + (-self)
+def __rmul__(self, other): return self * other
+def __truediv__(self, other): return self * other**-1
+def __rtruediv__(self, other): return other * self**-1
+```
+
+This lets us write natural code like:
+```python
+loss = (prediction - target) ** 2
+loss = -probability.log()
+```
+
+## Summary
+
+The **autograd engine** is how neural networks learn:
+
+1. **Wrap numbers** in a `Value` class
+2. **Define operations** with their backward gradient functions
+3. **Build a computation graph** automatically
+4. **Run backward** to compute gradients using the chain rule
+
+This is the same principle used by PyTorch and TensorFlow - but implemented in ~80 lines of Python!

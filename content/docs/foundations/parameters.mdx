@@ -1,0 +1,126 @@
+---
+title: Model Parameters
+description: Understanding the weights and hyperparameters in GPT
+---
+
+# Model Parameters
+
+Now we understand how learning works. Let's look at what the model actually learns - the **parameters**.
+
+## What Are Parameters?
+
+**Parameters** (also called **weights** or **weights and biases**) are the learnable numbers in a neural network. They're the "brain" of the model - what gets adjusted during training.
+
+```
+Input → [weights] → Output
+```
+
+When we say "the model learns," we mean "the parameters get adjusted."
+
+## The Parameters in microgpt
+
+Here's how parameters are initialized in microgpt:
+
+```python
+matrix = lambda nout, nin, std=0.02: [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
+
+state_dict = {
+    'wte': matrix(vocab_size, n_embd),           # Token embeddings
+    'wpe': matrix(block_size, n_embd),           # Position embeddings
+    'lm_head': matrix(vocab_size, n_embd),       # Language model head
+}
+
+for i in range(n_layer):
+    state_dict[f'layer{i}.attn_wq'] = matrix(n_embd, n_embd)  # Query
+    state_dict[f'layer{i}.attn_wk'] = matrix(n_embd, n_embd)  # Key
+    state_dict[f'layer{i}.attn_wv'] = matrix(n_embd, n_embd)  # Value
+    state_dict[f'layer{i}.attn_wo'] = matrix(n_embd, n_embd, std=0)  # Output
+    state_dict[f'layer{i}.mlp_fc1'] = matrix(4 * n_embd, n_embd)  # Expand
+    state_dict[f'layer{i}.mlp_fc2'] = matrix(n_embd, 4 * n_embd, std=0)  # Contract
+}
+```
+
+## What Do All These Mean?
+
+| Parameter | Shape | Purpose |
+|-----------|-------|---------|
+| `wte` | vocab × n_embd | Token embedding - what each character means |
+| `wpe` | block_size × n_embd | Position embedding - where each position is |
+| `attn_wq` | n_embd × n_embd | Query projection for attention |
+| `attn_wk` | n_embd × n_embd | Key projection for attention |
+| `attn_wv` | n_embd × n_embd | Value projection for attention |
+| `attn_wo` | n_embd × n_embd | Attention output projection |
+| `mlp_fc1` | 4*n_embd × n_embd | First MLP layer (expands) |
+| `mlp_fc2` | n_embd × 4*n_embd | Second MLP layer (contracts) |
+| `lm_head` | vocab × n_embd | Final projection to vocabulary |
+
+## Hyperparameters
+
+**Hyperparameters** are settings we choose before training:
+
+```python
+n_embd = 16       # Embedding dimension (size of each vector)
+n_layer = 1       # Number of transformer layers
+block_size = 8    # Maximum sequence length
+n_head = 4        # Number of attention heads
+head_dim = 4      # Dimension per head (n_embd / n_head)
+```
+
+| Hyperparameter | What it controls |
+|----------------|-------------------|
+| `n_embd` | How much "information" each token represents |
+| `n_layer` | How deep/complex the model is |
+| `block_size` | Maximum sequence length |
+| `n_head` | How many attention "heads" |
+| `head_dim` | Size of each attention head |
+
+## Initializing Parameters
+
+Parameters are initialized with random values:
+
+```python
+matrix = lambda nout, nin, std=0.02: [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
+```
+
+- **Mean**: 0 (centered around zero)
+- **Standard deviation**: 0.02 (small random values)
+
+This is important! If weights are too large, the model becomes unstable. If too small, gradients might vanish.
+
+## Parameter Count
+
+For a small model (`n_embd=16`, `n_layer=1`, `vocab=27`):
+
+| Component | Parameters |
+|-----------|------------|
+| Token embedding (wte) | 27 × 16 = 432 |
+| Position embedding (wpe) | 8 × 16 = 128 |
+| Attention Q, K, V | 16 × 16 × 3 = 768 |
+| Attention output | 16 × 16 = 256 |
+| MLP expand | 64 × 16 = 1024 |
+| MLP contract | 16 × 64 = 1024 |
+| LM head | 27 × 16 = 432 |
+| **Total** | **~4,000** |
+
+Compare this to GPT-3: ~175 billion parameters!
+
+## The Flattened Parameter List
+
+For optimization, all parameters are flattened into a single list:
+
+```python
+params = [p for mat in state_dict.values() for row in mat for p in row]
+```
+
+This makes it easy to iterate over all parameters during training.
+
+## Summary
+
+**Parameters** are the learnable weights that define what the neural network knows:
+
+1. **Initialized** randomly at the start
+2. **Updated** during training using gradients
+3. **Stored** in `state_dict` by name
+4. **Counted** in the millions or billions for large models
+
+The specific parameters in GPT include token embeddings, position embeddings, attention projections, and MLP layers.
